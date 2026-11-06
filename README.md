@@ -21,8 +21,9 @@ npm run dev
 ## 管理端
 
 - `/admin`：新增 / 编辑 / 删除资源  
-- 本地默认开放写入  
-- 发布后请绑定密钥 `ADMIN_SECRET`；后台页可把密钥存进浏览器，请求头会带上 `x-admin-secret`
+- 写入必须配置 `ADMIN_SECRET`；未配置时 API 会拒绝 POST/PATCH/DELETE  
+- 后台页把密钥存进本机后，请求会带上 `x-admin-secret`  
+- 本地调试可先：`ADMIN_SECRET=dev npm run dev`
 
 ## 内容字段
 

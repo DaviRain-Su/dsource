@@ -21,7 +21,7 @@ import {
 
 type Props = {
   initialItems: Resource[]
-  adminOpen: boolean
+  secretConfigured: boolean
 }
 
 const emptyForm: ResourceInput = {
@@ -48,7 +48,7 @@ function adminHeaders(): HeadersInit {
   return secret ? { "content-type": "application/json", "x-admin-secret": secret } : { "content-type": "application/json" }
 }
 
-export function AdminDesk({ initialItems, adminOpen }: Props) {
+export function AdminDesk({ initialItems, secretConfigured }: Props) {
   const [items, setItems] = React.useState(initialItems)
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<ResourceInput>(emptyForm)
@@ -58,14 +58,30 @@ export function AdminDesk({ initialItems, adminOpen }: Props) {
   const [busy, setBusy] = React.useState(false)
   const [message, setMessage] = React.useState("")
 
+  const refreshList = React.useCallback(async (adminSecret: string) => {
+    if (!adminSecret) return
+    const res = await fetch("/api/resources?drafts=1", {
+      headers: { "x-admin-secret": adminSecret },
+    })
+    if (!res.ok) {
+      setMessage(res.status === 401 ? "密钥不正确，无法读取草稿" : "刷新列表失败")
+      return
+    }
+    const data = (await res.json()) as { items: Resource[] }
+    setItems(data.items)
+  }, [])
+
   React.useEffect(() => {
     const saved = window.localStorage.getItem("dsource_admin_secret") || ""
     setSecret(saved)
-  }, [])
+    if (saved) void refreshList(saved)
+  }, [refreshList])
 
   const saveSecret = () => {
-    window.localStorage.setItem("dsource_admin_secret", secret.trim())
+    const next = secret.trim()
+    window.localStorage.setItem("dsource_admin_secret", next)
     setMessage("管理密钥已保存在本机")
+    void refreshList(next)
   }
 
   const load = (item: Resource) => {
@@ -185,28 +201,25 @@ export function AdminDesk({ initialItems, adminOpen }: Props) {
         </header>
 
         <div className="mb-6 flex flex-wrap items-end gap-3">
-          {!adminOpen ? (
-            <>
-              <div className="min-w-[16rem] flex-1">
-                <Label htmlFor="admin-secret">ADMIN_SECRET</Label>
-                <Input
-                  id="admin-secret"
-                  type="password"
-                  value={secret}
-                  onChange={(e) => setSecret(e.target.value)}
-                  placeholder="发布后在此填入密钥"
-                  seed="secret"
-                />
-              </div>
-              <Button onClick={saveSecret} seed="save-secret">
-                保存密钥
-              </Button>
-            </>
-          ) : (
-            <StickyNote color="green" seed="open-admin" className="text-base">
-              本地样例模式：写入未加锁。发布后请绑定 ADMIN_SECRET。
+          <div className="min-w-[16rem] flex-1">
+            <Label htmlFor="admin-secret">ADMIN_SECRET</Label>
+            <Input
+              id="admin-secret"
+              type="password"
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              placeholder="填入管理密钥后才能写入"
+              seed="secret"
+            />
+          </div>
+          <Button onClick={saveSecret} seed="save-secret">
+            保存密钥
+          </Button>
+          {!secretConfigured ? (
+            <StickyNote color="yellow" seed="need-secret" className="max-w-[14rem] text-sm">
+              服务端未配置 ADMIN_SECRET 时，所有写入都会被拒绝。
             </StickyNote>
-          )}
+          ) : null}
           {message ? <p className="text-sm text-ink-you">{message}</p> : null}
         </div>
 

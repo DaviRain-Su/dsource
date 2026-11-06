@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { isAdminAuthorized } from "@/lib/admin-auth"
-import { createResource, listResources } from "@/lib/resources"
+import { createResource } from "@/lib/resources"
+import { isSafeHttpUrl, sanitizeHttpUrl, sanitizeHttpUrlList } from "@/lib/safe-url"
+import { listResources } from "@/lib/resources"
+
+const urlField = z.string().refine((v) => isSafeHttpUrl(v), { message: "unsafe_url" })
 
 const createSchema = z.object({
   title: z.string().min(1),
@@ -11,12 +15,12 @@ const createSchema = z.object({
   body: z.string().optional(),
   body_zh: z.string().optional(),
   source_type: z.string().optional(),
-  source_url: z.string().optional(),
+  source_url: urlField.optional(),
   source_author: z.string().optional(),
   source_lang: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  cover_url: z.string().optional(),
-  media_urls: z.array(z.string()).optional(),
+  cover_url: urlField.optional(),
+  media_urls: z.array(urlField).optional(),
   status: z.string().optional(),
   featured: z.boolean().optional(),
   slug: z.string().optional(),
@@ -46,6 +50,12 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid", details: parsed.error.flatten() }, { status: 400 })
   }
-  const item = await createResource(parsed.data)
+  const data = {
+    ...parsed.data,
+    source_url: sanitizeHttpUrl(parsed.data.source_url ?? ""),
+    cover_url: sanitizeHttpUrl(parsed.data.cover_url ?? ""),
+    media_urls: sanitizeHttpUrlList(parsed.data.media_urls),
+  }
+  const item = await createResource(data)
   return NextResponse.json({ item }, { status: 201 })
 }

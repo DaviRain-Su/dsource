@@ -15,6 +15,7 @@ import { Stamp } from "@/components/ui/stamp"
 import { StickyNote } from "@/components/ui/sticky-note"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { isSafeHttpUrl } from "@/lib/safe-url"
 import {
   SOURCE_TYPE_LABELS,
   SOURCE_TYPES,
@@ -263,13 +264,13 @@ export function ResourceHub({ initialItems, sample }: Props) {
                   </h2>
                   <p className="mt-2 text-sm text-ink-muted">
                     {selected.source_author || "未署名"}
-                    {selected.source_url ? (
+                    {selected.source_url && isSafeHttpUrl(selected.source_url) ? (
                       <>
                         {" · "}
                         <a
                           href={selected.source_url}
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                           className="text-link underline-offset-2 hover:underline"
                         >
                           打开来源
@@ -285,7 +286,7 @@ export function ResourceHub({ initialItems, sample }: Props) {
 
                 {selected.media_urls?.length ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {selected.media_urls.map((src) => (
+                    {selected.media_urls.filter(isSafeHttpUrl).map((src) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         key={src}
