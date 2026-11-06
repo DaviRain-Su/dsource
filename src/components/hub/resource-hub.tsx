@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Stamp } from "@/components/ui/stamp"
 import { StickyNote } from "@/components/ui/sticky-note"
 import { cn } from "@/lib/utils"
+import type { MediaItem, QuoteRef } from "@/lib/media"
 import { isSafeHttpUrl } from "@/lib/safe-url"
 import {
   SOURCE_TYPE_LABELS,
@@ -46,6 +47,71 @@ function relativeTime(iso: string): string {
   const d = Math.floor(h / 24)
   if (d < 14) return `${d} 天前`
   return new Date(t).toLocaleDateString("zh-CN")
+}
+
+function MediaGallery({ items, preferZh }: { items: MediaItem[]; preferZh: boolean }) {
+  const safe = items.filter((m) => m.url && isSafeHttpUrl(m.url))
+  if (!safe.length) return null
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {safe.map((m) => (
+        <figure key={m.url} className="space-y-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={m.url}
+            alt={m.alt || ""}
+            className="max-h-[28rem] w-full rounded-sm border border-pencil-mark/40 object-contain bg-photo"
+          />
+          {(preferZh ? m.description_zh || m.description : m.description || m.description_zh) ? (
+            <details className="rounded-sm border border-dashed border-pencil-mark/50 bg-slip/60 px-3 py-2 text-sm text-ink-soft">
+              <summary className="cursor-pointer font-medium text-ink">图中文字</summary>
+              <p className="mt-2 whitespace-pre-wrap leading-relaxed">
+                {preferZh ? m.description_zh || m.description : m.description || m.description_zh}
+              </p>
+            </details>
+          ) : null}
+        </figure>
+      ))}
+    </div>
+  )
+}
+
+function QuoteCard({ quote, preferZh }: { quote: QuoteRef; preferZh: boolean }) {
+  const handle = quote.author_handle.replace(/^@/, "")
+  const text = preferZh && quote.text_zh?.trim() ? quote.text_zh : quote.text
+  return (
+    <Paper
+      as="aside"
+      stock="slip"
+      seed={`quote-${handle}`}
+      className="mt-2 border-l-4 border-rule-blue/80"
+      aria-label={`引用自 @${handle}`}
+    >
+      <div className="space-y-3 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">引用</Badge>
+          <p className="font-hand text-sm font-bold text-ink">
+            引用自 @{handle}
+            {quote.author_name ? (
+              <span className="ml-2 font-sans font-normal text-ink-muted">{quote.author_name}</span>
+            ) : null}
+          </p>
+          {quote.url && isSafeHttpUrl(quote.url) ? (
+            <a
+              href={quote.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto text-sm text-link underline-offset-2 hover:underline"
+            >
+              打开原帖
+            </a>
+          ) : null}
+        </div>
+        <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink-soft">{text}</p>
+        <MediaGallery items={quote.media ?? []} preferZh={preferZh} />
+      </div>
+    </Paper>
+  )
 }
 
 function renderBody(text: string) {
@@ -300,23 +366,22 @@ export function ResourceHub({ initialItems, sample }: Props) {
                   {displaySummary(selected, preferZh)}
                 </p>
 
-                {selected.media_urls?.length ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {selected.media_urls.filter(isSafeHttpUrl).map((src) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={src}
-                        src={src}
-                        alt=""
-                        className="max-h-[28rem] w-full rounded-sm border border-pencil-mark/40 object-contain bg-photo"
-                      />
-                    ))}
-                  </div>
-                ) : null}
+                <MediaGallery
+                  items={
+                    selected.media?.length
+                      ? selected.media
+                      : (selected.media_urls || []).map((url) => ({ url }))
+                  }
+                  preferZh={preferZh}
+                />
 
                 <div className="prose-loose max-w-none">
                   {renderBody(displayBody(selected, preferZh))}
                 </div>
+
+                {selected.quote ? (
+                  <QuoteCard quote={selected.quote} preferZh={preferZh} />
+                ) : null}
               </div>
             </Paper>
           ) : (

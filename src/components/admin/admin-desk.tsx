@@ -11,6 +11,8 @@ import { Paper } from "@/components/ui/paper"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StickyNote } from "@/components/ui/sticky-note"
 import { Textarea } from "@/components/ui/textarea"
+import { MediaEditor } from "@/components/admin/media-editor"
+import type { MediaItem, QuoteRef } from "@/lib/media"
 import {
   SOURCE_TYPE_LABELS,
   SOURCE_TYPES,
@@ -38,9 +40,21 @@ const emptyForm: ResourceInput = {
   tags: [],
   cover_url: "",
   media_urls: [],
+  media: [],
+  quote: null,
   status: "published",
   featured: false,
 }
+
+const emptyQuote = (): QuoteRef => ({
+  author_name: "",
+  author_handle: "",
+  text: "",
+  text_zh: "",
+  url: "",
+  media: [],
+  quote: null,
+})
 
 function adminHeaders(): HeadersInit {
   const secret =
@@ -53,10 +67,12 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<ResourceInput>(emptyForm)
   const [tagText, setTagText] = React.useState("")
-  const [mediaText, setMediaText] = React.useState("")
   const [secret, setSecret] = React.useState("")
   const [busy, setBusy] = React.useState(false)
   const [message, setMessage] = React.useState("")
+  const [quoteForm, setQuoteForm] = React.useState<QuoteRef>(emptyQuote())
+  const [quoteMedia, setQuoteMedia] = React.useState<MediaItem[]>([])
+  const [mediaRows, setMediaRows] = React.useState<MediaItem[]>([])
 
   const refreshList = React.useCallback(async (adminSecret: string) => {
     if (!adminSecret) return
@@ -100,32 +116,48 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
       tags: item.tags,
       cover_url: item.cover_url,
       media_urls: item.media_urls,
+      media: item.media,
+      quote: item.quote,
       status: item.status,
       featured: item.featured,
       slug: item.slug,
     })
     setTagText(item.tags.join(", "))
-    setMediaText(item.media_urls.join("\n"))
+    setMediaRows(item.media?.length ? item.media : (item.media_urls || []).map((url) => ({ url, role: "main" as const })))
+    setQuoteForm(item.quote ? { ...emptyQuote(), ...item.quote, quote: null } : emptyQuote())
+    setQuoteMedia(item.quote?.media ?? [])
   }
 
   const reset = () => {
     setEditingId(null)
     setForm(emptyForm)
     setTagText("")
-    setMediaText("")
+    setMediaRows([])
+    setQuoteForm(emptyQuote())
+    setQuoteMedia([])
   }
 
-  const payload = (): ResourceInput => ({
-    ...form,
-    tags: tagText
-      .split(/[,，]/)
-      .map((t) => t.trim())
-      .filter(Boolean),
-    media_urls: mediaText
-      .split(/\n/)
-      .map((t) => t.trim())
-      .filter(Boolean),
-  })
+  const payload = (): ResourceInput => {
+    const handle = quoteForm.author_handle.trim().replace(/^@/, "")
+    const hasQuote = Boolean(handle || quoteForm.text.trim() || quoteForm.text_zh?.trim())
+    return {
+      ...form,
+      tags: tagText
+        .split(/[,，]/)
+        .map((t) => t.trim())
+        .filter(Boolean),
+      media: mediaRows,
+      media_urls: mediaRows.map((m) => m.url).filter(Boolean),
+      quote: hasQuote
+        ? {
+            ...quoteForm,
+            author_handle: handle,
+            media: quoteMedia,
+            quote: null,
+          }
+        : null,
+    }
+  }
 
   const submit = async () => {
     setBusy(true)
@@ -277,14 +309,45 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
               />
               <Field label="标签（逗号分隔）" value={tagText} onChange={setTagText} />
               <Field label="封面 URL" value={form.cover_url ?? ""} onChange={(v) => setField("cover_url", v)} />
-              <div className="sm:col-span-2">
-                <Field
-                  label="媒体 URL（每行一个）"
-                  value={mediaText}
-                  onChange={setMediaText}
-                  area
-                  rows={3}
-                />
+              <MediaEditor value={mediaRows} onChange={setMediaRows} />
+              <div className="sm:col-span-2 space-y-3 rounded-sm border border-dashed border-pencil-mark/50 p-3">
+                <h3 className="font-script text-xl font-bold text-ink">一层引用（可选）</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="作者名"
+                    value={quoteForm.author_name}
+                    onChange={(v) => setQuoteForm((q) => ({ ...q, author_name: v }))}
+                  />
+                  <Field
+                    label="Handle（不要 @）"
+                    value={quoteForm.author_handle}
+                    onChange={(v) => setQuoteForm((q) => ({ ...q, author_handle: v }))}
+                  />
+                  <Field
+                    label="引用贴链接"
+                    value={quoteForm.url ?? ""}
+                    onChange={(v) => setQuoteForm((q) => ({ ...q, url: v }))}
+                  />
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="引用正文（中文）"
+                      value={quoteForm.text_zh ?? ""}
+                      onChange={(v) => setQuoteForm((q) => ({ ...q, text_zh: v }))}
+                      area
+                      rows={5}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Field
+                      label="引用正文（原文）"
+                      value={quoteForm.text}
+                      onChange={(v) => setQuoteForm((q) => ({ ...q, text: v }))}
+                      area
+                      rows={5}
+                    />
+                  </div>
+                </div>
+                <MediaEditor value={quoteMedia} onChange={setQuoteMedia} />
               </div>
               <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
                 <label className="flex items-center gap-2 text-sm text-ink">

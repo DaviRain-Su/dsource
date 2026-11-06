@@ -28,3 +28,7 @@ npm run dev
 ## 内容字段
 
 每条资源同时支持原文与中文：`title` / `title_zh`、`summary` / `summary_zh`、`body` / `body_zh`。前台默认显示中文，可切换「原文」。
+
+可选一层引用：`quote`（作者 / handle / 正文 / 媒体）；结构化配图：`media[]`（url / alt / 图中文字）。后台可用 **Tesseract.js**（免费、无 key）对图片 OCR。`media_urls` 仍兼容旧数据。
+
+Future: an external AI agent (custom model) can `POST /api/resources` with `ADMIN_SECRET` to ingest tweets + quotes automatically — not built yet.
