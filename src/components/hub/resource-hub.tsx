@@ -13,7 +13,6 @@ import { Paper } from "@/components/ui/paper"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Stamp } from "@/components/ui/stamp"
 import { StickyNote } from "@/components/ui/sticky-note"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { isSafeHttpUrl } from "@/lib/safe-url"
 import {
@@ -149,16 +148,33 @@ export function ResourceHub({ initialItems, sample }: Props) {
             className="group-data-[view=reader]/hub:@max-4xl:hidden"
             aria-label="资源书架"
           >
-            <div className="flex h-full min-h-[28rem] flex-col gap-3 p-3 sm:p-4">
-              <Tabs value={shelf} onValueChange={setShelf}>
-                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
-                  {SHELVES.map((s) => (
-                    <TabsTrigger key={s.id} value={s.id} className="text-sm">
+            <div className="flex h-full min-h-[28rem] flex-col gap-4 p-3 sm:p-4">
+              <div
+                role="tablist"
+                aria-label="来源分类"
+                className="grid grid-cols-2 gap-3"
+              >
+                {SHELVES.map((s) => {
+                  const active = shelf === s.id
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setShelf(s.id)}
+                      className={cn(
+                        "rounded-sm border px-2.5 py-2 text-center text-sm font-medium transition-colors",
+                        active
+                          ? "border-ink bg-accent text-ink shadow-sm"
+                          : "border-pencil-mark/70 bg-slip/90 text-ink-soft hover:border-ink/50 hover:bg-paper",
+                      )}
+                    >
                       {s.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
+                    </button>
+                  )
+                })}
+              </div>
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -167,7 +183,7 @@ export function ResourceHub({ initialItems, sample }: Props) {
                 aria-label="搜索"
               />
               <ScrollArea className="min-h-0 flex-1 pr-2">
-                <div className="flex flex-col gap-2 pb-2">
+                <div className="flex flex-col gap-3 pb-2">
                   {filtered.map((item) => {
                     const active = item.id === selected?.id
                     return (
@@ -184,7 +200,7 @@ export function ResourceHub({ initialItems, sample }: Props) {
                         <IndexCard
                           seed={item.id}
                           className={cn(
-                            "min-h-0 w-full max-w-none p-3 leading-snug",
+                            "min-h-0 w-full max-w-none gap-0 p-3 leading-snug [&_[data-slot=paper-rules]]:opacity-40",
                             active && "ring-2 ring-ink/30",
                           )}
                         >
