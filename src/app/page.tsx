@@ -4,6 +4,12 @@ import { listResources } from "@/lib/resources"
 export const dynamic = "force-dynamic"
 
 export default async function HomePage() {
-  const items = await listResources()
+  // Fail soft so Preview never hangs forever if Postgres is slow/unreachable.
+  let items: Awaited<ReturnType<typeof listResources>> = []
+  try {
+    items = await listResources()
+  } catch (error) {
+    console.error("listResources failed", error)
+  }
   return <ResourceHub initialItems={items} sample={!process.env.DATABASE_URL} />
 }

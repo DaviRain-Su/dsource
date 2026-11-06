@@ -9,10 +9,20 @@ if (url === "" || files.length === 0) {
   console.log("migrate: nothing to do")
   process.exit(0)
 }
+
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL_UNPOOLED?.trim() || url,
+  // Avoid hanging `npm run build` (and thus Preview) forever on a bad DB URL.
+  connectionTimeoutMillis: 15_000,
 })
-await client.connect()
+
+try {
+  await client.connect()
+} catch (error) {
+  console.error("migrate: failed to connect", error instanceof Error ? error.message : error)
+  process.exit(1)
+}
+
 try {
   await client.query("set lock_timeout = '60s'")
   await client.query("select pg_advisory_lock(7272741)")
