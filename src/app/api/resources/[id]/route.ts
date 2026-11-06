@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { isAdminAuthorized } from "@/lib/admin-auth"
+import { requireAdmin } from "@/lib/admin-gate"
+import { limitAdminAction } from "@/lib/rate-limit"
 import { deleteResource, getResource, updateResource } from "@/lib/resources"
 import { isSafeHttpUrl, sanitizeHttpUrl, sanitizeHttpUrlList } from "@/lib/safe-url"
 
@@ -53,16 +55,24 @@ export async function GET(request: Request, ctx: Ctx) {
   const { id } = await ctx.params
   const item = await getResource(id)
   if (!item) return NextResponse.json({ error: "not_found" }, { status: 404 })
-  if (item.status !== "published" && !isAdminAuthorized(request)) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 })
+  if (item.status !== "published") {
+    const limited = limitAdminAction(request)
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "rate_limited" },
+        { status: 429, headers: { "retry-after": String(limited.retryAfterSec) } },
+      )
+    }
+    if (!isAdminAuthorized(request)) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 })
+    }
   }
   return NextResponse.json({ item }, { headers: { "cache-control": "private, no-store" } })
 }
 
 export async function PATCH(request: Request, ctx: Ctx) {
-  if (!isAdminAuthorized(request)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  }
+  const denied = requireAdmin(request)
+  if (denied) return denied
   const { id } = await ctx.params
   const json = await request.json().catch(() => null)
   const parsed = updateSchema.safeParse(json)
@@ -107,9 +117,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
 }
 
 export async function DELETE(request: Request, ctx: Ctx) {
-  if (!isAdminAuthorized(request)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  }
+  const denied = requireAdmin(request)
+  if (denied) return denied
   const { id } = await ctx.params
   const ok = await deleteResource(id)
   if (!ok) return NextResponse.json({ error: "not_found" }, { status: 404 })

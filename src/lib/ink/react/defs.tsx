@@ -74,7 +74,8 @@ function defsMarkup(kinds: readonly GrainMaskKind[], tiles: string): string {
   return s
 }
 
-export const KEVIN_SANS_CSS = "https://kevintngo.github.io/looseleaf/fonts/kevin-sans.css"
+/** Self-hosted copy under /public/fonts — never fetch from github.io. */
+export const KEVIN_SANS_CSS = "/fonts/kevin-sans.css"
 
 export function ensureInkFonts(): void {
   if (typeof document === "undefined" || document.querySelector("[data-ll-fonts]")) return
@@ -83,6 +84,8 @@ export function ensureInkFonts(): void {
     if (face.family.replace(/["']/g, "").startsWith("Kevin Sans")) present = true
   })
   if (present) return
+  // Layout already loads /fonts/kevin-sans.css; only inject if missing.
+  if (document.querySelector(`link[href="${KEVIN_SANS_CSS}"]`)) return
   const link = document.createElement("link")
   link.rel = "stylesheet"
   link.href = KEVIN_SANS_CSS

@@ -8,10 +8,6 @@ export function isAdminAuthorized(request: Request): boolean {
   return timingSafeEqual(header, secret) || timingSafeEqual(cookie, secret)
 }
 
-export function hasAdminSecretConfigured(): boolean {
-  return Boolean(process.env.ADMIN_SECRET?.trim())
-}
-
 function parseCookie(raw: string): Record<string, string> {
   const out: Record<string, string> = {}
   for (const part of raw.split(";")) {

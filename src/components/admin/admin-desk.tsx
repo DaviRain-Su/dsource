@@ -23,7 +23,6 @@ import {
 
 type Props = {
   initialItems: Resource[]
-  secretConfigured: boolean
 }
 
 const emptyForm: ResourceInput = {
@@ -62,7 +61,7 @@ function adminHeaders(): HeadersInit {
   return secret ? { "content-type": "application/json", "x-admin-secret": secret } : { "content-type": "application/json" }
 }
 
-export function AdminDesk({ initialItems, secretConfigured }: Props) {
+export function AdminDesk({ initialItems }: Props) {
   const [items, setItems] = React.useState(initialItems)
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [form, setForm] = React.useState<ResourceInput>(emptyForm)
@@ -80,7 +79,13 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
       headers: { "x-admin-secret": adminSecret },
     })
     if (!res.ok) {
-      setMessage(res.status === 401 ? "密钥不正确，无法读取草稿" : "刷新列表失败")
+      setMessage(
+        res.status === 401
+          ? "密钥不正确，无法读取草稿"
+          : res.status === 429
+            ? "请求过频，请稍后再试"
+            : "刷新列表失败",
+      )
       return
     }
     const data = (await res.json()) as { items: Resource[] }
@@ -181,7 +186,13 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
             body: JSON.stringify(body),
           })
       if (!res.ok) {
-        setMessage(res.status === 401 ? "未授权：请填写正确的 ADMIN_SECRET" : `保存失败 (${res.status})`)
+        setMessage(
+          res.status === 401
+            ? "未授权：请检查管理密钥"
+            : res.status === 429
+              ? "请求过频，请稍后再试"
+              : `保存失败 (${res.status})`,
+        )
         return
       }
       const data = (await res.json()) as { item: Resource }
@@ -202,7 +213,13 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
     try {
       const res = await fetch(`/api/resources/${id}`, { method: "DELETE", headers: adminHeaders() })
       if (!res.ok) {
-        setMessage(res.status === 401 ? "未授权" : "删除失败")
+        setMessage(
+          res.status === 401
+            ? "未授权"
+            : res.status === 429
+              ? "请求过频，请稍后再试"
+              : "删除失败",
+        )
         return
       }
       setItems((prev) => prev.filter((x) => x.id !== id))
@@ -247,11 +264,9 @@ export function AdminDesk({ initialItems, secretConfigured }: Props) {
           <Button onClick={saveSecret} seed="save-secret">
             保存密钥
           </Button>
-          {!secretConfigured ? (
-            <StickyNote color="yellow" seed="need-secret" className="max-w-[14rem] text-sm">
-              服务端未配置 ADMIN_SECRET 时，所有写入都会被拒绝。
-            </StickyNote>
-          ) : null}
+          <StickyNote color="yellow" seed="need-secret" className="max-w-[14rem] text-sm">
+            写入需要管理密钥；密钥错误或请求过频时会被拒绝。
+          </StickyNote>
           {message ? <p className="text-sm text-ink-you">{message}</p> : null}
         </div>
 

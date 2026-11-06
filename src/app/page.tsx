@@ -11,5 +11,5 @@ export default async function HomePage() {
   } catch (error) {
     console.error("listResources failed", error)
   }
-  return <ResourceHub initialItems={items} sample={!process.env.DATABASE_URL} />
+  return <ResourceHub initialItems={items} />
 }
