@@ -1,6 +1,34 @@
 import type { ResourceInput } from "@/lib/types"
 
-/** First curated item: Oasis Feng on recursive self-contained outlines */
+const KARPATHY_TEXT = `We'll be spending a lot more time trying to understand the outputs of language models. A few thoughts, tips & tricks:
+
+Writing. Something I've had success with: Ask your LLM to explain something in ASD-STE100, it's a controlled language specification originally developed for aerospace maintenance documentation. LLMs well-versed in this language and it comes with heavy constraints on clean writing style that I often find a lot more readable. Sometimes I've tried to soften it a bit e.g. ask for "80% of the way to ASD-STE100" because the spec is quite stringent. But even better:
+
+Diagrams / images. Instead of writing, ask your LLM to create a diagram. These can be a lot easier to process, parse, and understand. But even better:
+
+Web pages. Ask for output "in HTML" to get a beautiful, interactive webpage. LLMs are getting really good at frontend and can create beautiful experiences, animations, etc. But even better:
+
+Explainer videos. The output format I am most bullish on is fully custom / bespoke explainer videos generated on any arbitrary topic. Experiment with things like "Create a 3b1b style video explainer on X. Use my ElevenLabs API key for audio narration". (you'd need an API key for the latter or you can ask your LLM to find you decent free alternatives that use your local compute). This is actually starting to work!
+
+In summary:
+- As LLMs get better, they will do more and more of the legwork autonomously, and a lot more of our work will rise up the abstractions into oversight and understanding.
+- Luckily, LLMs can help here too because as intelligence and code are increasingly abundant, you can ask for large, custom, discardable software artifacts (e.g. web apps, video explainers) that would have never made sense to create before. Push the boundaries here and you'll be surprised.`
+
+const KARPATHY_TEXT_ZH = `我们会花越来越多时间去理解语言模型的输出。一些想法与技巧：
+
+写作。我试过有效的做法：让 LLM 用 ASD-STE100 来解释——这是最初为航空航天维护文档设计的受控语言规范。模型很熟悉这套约束，写出的文字往往更干净、更好读。有时我会放宽一点，比如要求「八成接近 ASD-STE100」，因为原规范很严。但还可以更好：
+
+图示。别只写字，让模型画图；往往更好扫、更好懂。还可以更好：
+
+网页。要求「用 HTML 输出」，得到可交互的漂亮页面。前端能力越来越强。还可以更好：
+
+讲解视频。我最看好完全定制的讲解视频。例如：「用 3Blue1Brown 风格做一段关于 X 的讲解视频，旁白用我的 ElevenLabs key」。没有 key 也可以让模型找本地算力的替代方案——这已经开始能用了。
+
+总结：
+- 模型越强，越会自己干脏活，我们的工作会上移到监督与理解。
+- 智能与代码越来越充裕，你可以要求以前不值得做的大型可抛弃工件（网页、讲解视频）。把边界往外推，你会吃惊。`
+
+/** First curated item: Oasis Feng on recursive self-contained outlines (quotes Karpathy) */
 export const SEED_RESOURCES: Array<ResourceInput & { id: string; slug: string }> = [
   {
     id: "oasisfeng-recursive-outline",
@@ -39,6 +67,43 @@ Source: https://x.com/oasisfeng/status/2118687812988076219`,
     tags: ["llm", "提示词", "阅读", "karpathy", "生产力"],
     cover_url: "/media/oasisfeng-demo.jpg",
     media_urls: ["/media/oasisfeng-demo.jpg", "/media/oasisfeng-prompt.jpg"],
+    media: [
+      {
+        url: "/media/oasisfeng-demo.jpg",
+        alt: "ChatGPT 以递归自包含分级列表作答的示例截图",
+        description: "A tall dark-mode screenshot of a hierarchical indented ChatGPT answer.",
+        description_zh: "深色界面截图：ChatGPT 用多级缩进列表作答，外层概括内层。",
+        role: "main",
+      },
+      {
+        url: "/media/oasisfeng-prompt.jpg",
+        alt: "系统提示词「输出格式」截图",
+        description:
+          "System prompt titled 输出格式: answers should use hierarchical indented structure; each outer level must summarize the core of the next level.",
+        description_zh:
+          "系统提示「输出格式」：对话回答用分级缩进；除最末级外，外层必须概括下一层核心信息，便于按需深入阅读。",
+        role: "main",
+      },
+    ],
+    quote: {
+      author_name: "Andrej Karpathy",
+      author_handle: "karpathy",
+      url: "https://x.com/karpathy/status/2105819303471976479",
+      text: KARPATHY_TEXT,
+      text_zh: KARPATHY_TEXT_ZH,
+      media: [
+        {
+          url: "/media/karpathy-asd-ste100.jpg",
+          alt: "Karpathy tips card mentioning ASD-STE100, diagrams, HTML, explainer videos",
+          description:
+            "Wide tip card: Writing (ASD-STE100), Diagrams/images, Web pages (HTML), Explainer videos.",
+          description_zh:
+            "横幅提示卡：写作（ASD-STE100）、图示、HTML 网页、讲解视频四层递进建议。",
+          role: "quote",
+        },
+      ],
+      quote: null,
+    },
     status: "published",
     featured: true,
   },
@@ -69,6 +134,8 @@ Source: https://x.com/oasisfeng/status/2118687812988076219`,
     tags: ["站点", "说明"],
     cover_url: "",
     media_urls: [],
+    media: [],
+    quote: null,
     status: "published",
     featured: false,
   },

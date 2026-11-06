@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { sql } from "@/lib/db"
+import { coerceMedia, coerceQuote, mediaUrlsFrom } from "@/lib/media"
 import { SEED_RESOURCES } from "@/lib/seed-data"
 import type { Resource, ResourceInput } from "@/lib/types"
 
@@ -15,6 +16,8 @@ function slugify(input: string): string {
 }
 
 function mapRow(row: Record<string, unknown>): Resource {
+  const media_urls = Array.isArray(row.media_urls) ? (row.media_urls as string[]) : []
+  const media = coerceMedia(row.media, media_urls)
   return {
     id: String(row.id),
     slug: String(row.slug),
@@ -30,7 +33,9 @@ function mapRow(row: Record<string, unknown>): Resource {
     source_lang: String(row.source_lang ?? "zh"),
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     cover_url: String(row.cover_url ?? ""),
-    media_urls: Array.isArray(row.media_urls) ? (row.media_urls as string[]) : [],
+    media_urls: mediaUrlsFrom(media, media_urls),
+    media,
+    quote: coerceQuote(row.quote),
     status: String(row.status ?? "published"),
     featured: Boolean(row.featured),
     created_at: String(row.created_at ?? ""),
@@ -38,18 +43,26 @@ function mapRow(row: Record<string, unknown>): Resource {
   }
 }
 
+function packInput(input: ResourceInput | (ResourceInput & { id: string; slug: string })) {
+  const media = coerceMedia(input.media, input.media_urls ?? [])
+  const media_urls = mediaUrlsFrom(media, input.media_urls ?? [])
+  const quote = input.quote === undefined ? undefined : coerceQuote(input.quote)
+  return { media, media_urls, quote }
+}
+
 export async function ensureSeeded(): Promise<void> {
   if (seeded) return
   const existing = await sql<{ count: string }>("select count(*)::text as count from resources")
   if (Number(existing[0]?.count ?? 0) === 0) {
     for (const item of SEED_RESOURCES) {
+      const packed = packInput(item)
       await sql(
         `insert into resources (
           id, slug, title, title_zh, summary, summary_zh, body, body_zh,
           source_type, source_url, source_author, source_lang, tags,
-          cover_url, media_urls, status, featured
+          cover_url, media_urls, media, quote, status, featured
         ) values (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19
         ) on conflict (id) do nothing`,
         [
           item.id,
@@ -66,9 +79,31 @@ export async function ensureSeeded(): Promise<void> {
           item.source_lang ?? "zh",
           item.tags ?? [],
           item.cover_url ?? "",
-          item.media_urls ?? [],
+          packed.media_urls,
+          JSON.stringify(packed.media),
+          packed.quote ? JSON.stringify(packed.quote) : null,
           item.status ?? "published",
           item.featured ?? false,
+        ],
+      )
+    }
+  } else {
+    // Backfill quote/media onto the first Oasis Feng seed if an older row is missing them.
+    const oasis = SEED_RESOURCES.find((r) => r.id === "oasisfeng-recursive-outline")
+    if (oasis?.quote) {
+      const packed = packInput(oasis)
+      await sql(
+        `update resources set
+           media = $2::jsonb,
+           quote = $3::jsonb,
+           media_urls = $4,
+           updated_at = now()
+         where id = $1 and quote is null`,
+        [
+          oasis.id,
+          JSON.stringify(packed.media),
+          JSON.stringify(packed.quote),
+          packed.media_urls,
         ],
       )
     }
@@ -122,13 +157,14 @@ export async function createResource(input: ResourceInput): Promise<Resource> {
   await ensureSeeded()
   const id = randomUUID()
   const slug = input.slug?.trim() || slugify(input.title_zh || input.title)
+  const packed = packInput(input)
   const rows = await sql(
     `insert into resources (
       id, slug, title, title_zh, summary, summary_zh, body, body_zh,
       source_type, source_url, source_author, source_lang, tags,
-      cover_url, media_urls, status, featured, updated_at
+      cover_url, media_urls, media, quote, status, featured, updated_at
     ) values (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17, now()
+      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19, now()
     ) returning *`,
     [
       id,
@@ -145,7 +181,9 @@ export async function createResource(input: ResourceInput): Promise<Resource> {
       input.source_lang ?? "zh",
       input.tags ?? [],
       input.cover_url ?? "",
-      input.media_urls ?? [],
+      packed.media_urls,
+      JSON.stringify(packed.media),
+      packed.quote ? JSON.stringify(packed.quote) : null,
       input.status ?? "published",
       input.featured ?? false,
     ],
@@ -161,6 +199,16 @@ export async function updateResource(
   const current = await getResource(id)
   if (!current) return null
 
+  const mergedMedia =
+    input.media !== undefined
+      ? coerceMedia(input.media, input.media_urls ?? current.media_urls)
+      : input.media_urls !== undefined
+        ? coerceMedia(undefined, input.media_urls)
+        : current.media
+  const media_urls = mediaUrlsFrom(mergedMedia, input.media_urls ?? current.media_urls)
+  const quote =
+    input.quote !== undefined ? coerceQuote(input.quote) : current.quote
+
   const next = {
     title: input.title ?? current.title,
     title_zh: input.title_zh ?? current.title_zh,
@@ -174,7 +222,9 @@ export async function updateResource(
     source_lang: input.source_lang ?? current.source_lang,
     tags: input.tags ?? current.tags,
     cover_url: input.cover_url ?? current.cover_url,
-    media_urls: input.media_urls ?? current.media_urls,
+    media_urls,
+    media: mergedMedia,
+    quote,
     status: input.status ?? current.status,
     featured: input.featured ?? current.featured,
     slug: input.slug ?? current.slug,
@@ -185,7 +235,8 @@ export async function updateResource(
       slug=$2, title=$3, title_zh=$4, summary=$5, summary_zh=$6,
       body=$7, body_zh=$8, source_type=$9, source_url=$10, source_author=$11,
       source_lang=$12, tags=$13, cover_url=$14, media_urls=$15,
-      status=$16, featured=$17, updated_at=now()
+      media=$16::jsonb, quote=$17::jsonb,
+      status=$18, featured=$19, updated_at=now()
      where id=$1
      returning *`,
     [
@@ -204,6 +255,8 @@ export async function updateResource(
       next.tags,
       next.cover_url,
       next.media_urls,
+      JSON.stringify(next.media),
+      next.quote ? JSON.stringify(next.quote) : null,
       next.status,
       next.featured,
     ],

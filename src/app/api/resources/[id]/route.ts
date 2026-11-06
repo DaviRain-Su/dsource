@@ -6,6 +6,26 @@ import { isSafeHttpUrl, sanitizeHttpUrl, sanitizeHttpUrlList } from "@/lib/safe-
 
 const urlField = z.string().refine((v) => isSafeHttpUrl(v), { message: "unsafe_url" })
 
+const mediaItemSchema = z.object({
+  url: urlField,
+  alt: z.string().optional(),
+  description: z.string().optional(),
+  description_zh: z.string().optional(),
+  role: z.enum(["main", "quote"]).optional(),
+})
+
+const quoteSchema = z
+  .object({
+    author_name: z.string(),
+    author_handle: z.string(),
+    text: z.string(),
+    text_zh: z.string().optional(),
+    url: urlField.optional().or(z.literal("")),
+    media: z.array(mediaItemSchema).optional(),
+    quote: z.null().optional(),
+  })
+  .nullable()
+
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
   title_zh: z.string().optional(),
@@ -14,12 +34,14 @@ const updateSchema = z.object({
   body: z.string().optional(),
   body_zh: z.string().optional(),
   source_type: z.string().optional(),
-  source_url: urlField.optional(),
+  source_url: urlField.optional().or(z.literal("")),
   source_author: z.string().optional(),
   source_lang: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  cover_url: urlField.optional(),
+  cover_url: urlField.optional().or(z.literal("")),
   media_urls: z.array(urlField).optional(),
+  media: z.array(mediaItemSchema).optional(),
+  quote: quoteSchema.optional(),
   status: z.string().optional(),
   featured: z.boolean().optional(),
   slug: z.string().optional(),
@@ -57,6 +79,26 @@ export async function PATCH(request: Request, ctx: Ctx) {
       : {}),
     ...(parsed.data.media_urls !== undefined
       ? { media_urls: sanitizeHttpUrlList(parsed.data.media_urls) }
+      : {}),
+    ...(parsed.data.media !== undefined
+      ? {
+          media: parsed.data.media.map((m) => ({ ...m, url: sanitizeHttpUrl(m.url) })),
+        }
+      : {}),
+    ...(parsed.data.quote !== undefined
+      ? {
+          quote: parsed.data.quote
+            ? {
+                ...parsed.data.quote,
+                url: sanitizeHttpUrl(parsed.data.quote.url ?? ""),
+                media: parsed.data.quote.media?.map((m) => ({
+                  ...m,
+                  url: sanitizeHttpUrl(m.url),
+                })),
+                quote: null,
+              }
+            : null,
+        }
       : {}),
   }
   const item = await updateResource(id, data)

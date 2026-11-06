@@ -1,3 +1,5 @@
+import type { MediaItem, QuoteRef } from "@/lib/media"
+
 export const SOURCE_TYPES = [
   "twitter",
   "youtube",
@@ -26,6 +28,8 @@ export type Resource = {
   tags: string[]
   cover_url: string
   media_urls: string[]
+  media: MediaItem[]
+  quote: QuoteRef | null
   status: "draft" | "published" | string
   featured: boolean
   created_at: string
@@ -46,6 +50,8 @@ export type ResourceInput = {
   tags?: string[]
   cover_url?: string
   media_urls?: string[]
+  media?: MediaItem[]
+  quote?: QuoteRef | null
   status?: string
   featured?: boolean
   slug?: string

@@ -6,12 +6,21 @@ const databaseUrl = process.env.DATABASE_URL?.trim() ?? ""
 let pool: pg.Pool | undefined
 let local: Promise<PGlite> | undefined
 
+const CONNECT_MS = 10_000
+
 export async function sql<T = Record<string, unknown>>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[]> {
   if (databaseUrl !== "") {
-    pool ??= new pg.Pool({ connectionString: databaseUrl, max: 5 })
+    pool ??= new pg.Pool({
+      connectionString: databaseUrl,
+      max: 5,
+      // Default is 0 (wait forever) — that turns Preview into an endless spinner
+      // when DATABASE_URL is set but the DB is unreachable during a preview boot.
+      connectionTimeoutMillis: CONNECT_MS,
+      idleTimeoutMillis: 30_000,
+    })
     return (await pool.query(text, params)).rows as T[]
   }
   local ??= startLocal().catch((error: unknown) => {
