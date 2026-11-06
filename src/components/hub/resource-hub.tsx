@@ -12,7 +12,6 @@ import { Notebook } from "@/components/ui/notebook"
 import { Paper } from "@/components/ui/paper"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Stamp } from "@/components/ui/stamp"
-import { StickyNote } from "@/components/ui/sticky-note"
 import { cn } from "@/lib/utils"
 import type { MediaItem, QuoteRef } from "@/lib/media"
 import { isSafeHttpUrl } from "@/lib/safe-url"
@@ -27,7 +26,6 @@ import {
 
 type Props = {
   initialItems: Resource[]
-  sample?: boolean
 }
 
 const SHELVES = [
@@ -144,7 +142,7 @@ function renderBody(text: string) {
   })
 }
 
-export function ResourceHub({ initialItems, sample }: Props) {
+export function ResourceHub({ initialItems }: Props) {
   const [items] = React.useState(initialItems)
   const [shelf, setShelf] = React.useState("all")
   const [q, setQ] = React.useState("")
@@ -193,11 +191,6 @@ export function ResourceHub({ initialItems, sample }: Props) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {sample ? (
-              <StickyNote color="yellow" seed="sample-flag" className="max-w-[12rem] text-sm">
-                本地样例库 · 发布后写入 Postgres
-              </StickyNote>
-            ) : null}
             <Button asChild variant="secondary" seed="admin-link">
               <Link href="/admin">后台</Link>
             </Button>

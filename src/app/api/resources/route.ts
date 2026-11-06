@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { isAdminAuthorized } from "@/lib/admin-auth"
+import { requireAdmin } from "@/lib/admin-gate"
 import { createResource, listResources } from "@/lib/resources"
 import { isSafeHttpUrl, sanitizeHttpUrl, sanitizeHttpUrlList } from "@/lib/safe-url"
 
@@ -52,20 +52,17 @@ export async function GET(request: Request) {
   const sourceType = url.searchParams.get("type") ?? undefined
   const q = url.searchParams.get("q") ?? undefined
   const includeDrafts = url.searchParams.get("drafts") === "1"
-  if (includeDrafts && !isAdminAuthorized(request)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (includeDrafts) {
+    const denied = requireAdmin(request)
+    if (denied) return denied
   }
   const items = await listResources({ includeDrafts, sourceType, q })
-  return NextResponse.json(
-    { items, sample: !process.env.DATABASE_URL },
-    { headers: { "cache-control": "private, no-store" } },
-  )
+  return NextResponse.json({ items }, { headers: { "cache-control": "private, no-store" } })
 }
 
 export async function POST(request: Request) {
-  if (!isAdminAuthorized(request)) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  }
+  const denied = requireAdmin(request)
+  if (denied) return denied
   const json = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(json)
   if (!parsed.success) {
